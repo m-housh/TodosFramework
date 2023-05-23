@@ -146,9 +146,9 @@ public struct TodoListView: View {
           }
           .padding()
         }
-        .refreshable { viewStore.send(.refresh) }
-        .onAppear { viewStore.send(.viewDidAppear) }
         .navigationTitle("Todos")
+        .onAppear { viewStore.send(.viewDidAppear) }
+        .refreshable { viewStore.send(.refresh) }
         .toolbar {
           Button(action: { viewStore.send(.addTodoButtonTapped) }) {
             Label("Add", systemImage: "plus")

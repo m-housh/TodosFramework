@@ -28,9 +28,9 @@ public struct TodoRow: Reducer {
       switch action {
 
       case .deleteButtonTapped:
-        return .run { [id = state.todo.id] send in
-          try await todoClient.delete(.id(id))
-          await send(.didDelete(id: id))
+        return .run { [todo = state.todo] send in
+          try await todoClient.delete(.todo(todo))
+          await send(.didDelete(id: todo.id))
         }
 
       case .didDelete:

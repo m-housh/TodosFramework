@@ -18,7 +18,7 @@ struct TodosApp: App {
       )
       .onChange(of: scenPhase) { phase in
         if !(phase == .active) {
-          _ = try? persistentContainer.viewContext.saveIfNeeded()
+          _ = try? persistentContainer.saveViewContextIfNeeded()
         }
       }
     }

@@ -4,13 +4,17 @@ import Foundation
 
 public struct Todo: Equatable, Sendable, Identifiable {
   
-  @UncheckedSendable public private(set) var id: NSManagedObjectID
+  @_spi(Internals)
+  @UncheckedSendable
+  public private(set) var _managedID: NSManagedObjectID
+  
+  public var id: UUID
   public var title: String
   public var isComplete: Bool
   public let lastModified: Date
   
   public init(
-    id: NSManagedObjectID,
+    id: UUID,
     title: String,
     isComplete: Bool,
     lastModified: Date
@@ -19,13 +23,18 @@ public struct Todo: Equatable, Sendable, Identifiable {
     self.title = title
     self.isComplete = isComplete
     self.lastModified = lastModified
+    self._managedID = .init()
   }
   
-  public init(entity: TodoEntity) {
-    self.id = entity.objectID
+  public init(id: ID? = nil, entity: TodoEntity) {
+    @Dependency(\.date.now) var now;
+    @Dependency(\.uuid) var uuid;
+    
+    self.id = id ?? uuid()
+    self._managedID = entity.objectID
     self.title = entity.title ?? ""
     self.isComplete = entity.complete
-    self.lastModified = entity.lastModified ?? Date()
+    self.lastModified = entity.lastModified ?? now
   }
 }
 

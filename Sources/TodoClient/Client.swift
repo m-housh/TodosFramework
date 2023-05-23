@@ -30,10 +30,15 @@ public struct TodoClient {
   
   public enum DeleteRequest {
     case all
+    case todos([Todo])
     case objectIDs([NSManagedObjectID])
     
     public static func id(_ id: NSManagedObjectID) -> Self {
       .objectIDs([id])
+    }
+    
+    public static func todo(_ todo: Todo) -> Self {
+      .todos([todo])
     }
   }
   

@@ -1,6 +1,6 @@
 import CoreData
 import Dependencies
-import SharedModels
+@_spi(Internals) import SharedModels
 @_exported import TodoClient
 
 
@@ -41,6 +41,8 @@ fileprivate extension TodoClient.DeleteRequest {
     switch self {
     case .all:
       return .init(fetchRequest: TodoEntity.fetchRequest())
+    case let .todos(todos):
+      return .init(objectIDs: todos.map(\._managedID))
     case let .objectIDs(objectIDs):
       return .init(objectIDs: objectIDs)
     }
@@ -61,7 +63,9 @@ fileprivate extension PersistentContainer {
       
       // Fetch the results and turn them into `Todo` instances.
       return try context.fetch(request)
-        .map(Todo.init(entity:))
+        .map { entity in
+          Todo.init(entity: entity)
+        }
     }
   }
   
@@ -92,7 +96,7 @@ fileprivate extension PersistentContainer {
     @Dependency(\.date.now) var now;
 
     return try await self.withNewBackgroundContext { context in
-      guard let entity = try context.existingObject(with: todo.id) as? TodoEntity
+      guard let entity = try context.existingObject(with: todo._managedID) as? TodoEntity
       else {
         XCTFail("Tried to update a todo that was not found in core data.")
         return todo
@@ -104,7 +108,7 @@ fileprivate extension PersistentContainer {
 
       do {
         try context.saveIfNeeded()
-        return Todo(entity: entity)
+        return Todo(id: todo.id, entity: entity)
       } catch {
         context.rollback()
         throw error

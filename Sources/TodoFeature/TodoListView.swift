@@ -8,11 +8,11 @@ public struct TodoList: Reducer {
   public init() { }
   
   public struct State: Equatable {
-    public var todos: IdentifiedArrayOf<TodoRow.State>
+    public var todos: IdentifiedArrayOf<Todo>
     @PresentationState public var destination: Destination.State?
     
     public init(
-      todos: IdentifiedArrayOf<TodoRow.State> = [],
+      todos: IdentifiedArrayOf<Todo> = [],
       destination: Destination.State? = nil
     ) {
       self.todos = todos
@@ -27,7 +27,7 @@ public struct TodoList: Reducer {
     case didLoad(todos: [Todo])
     case didSave(id: TodoRow.State.ID, todo: Todo)
     case refresh
-    case todo(id: TodoRow.State.ID, action: TodoRow.Action)
+//    case todo(id: TodoRow.State.ID, action: TodoRow.Action)
     case viewDidAppear
   }
 
@@ -64,7 +64,7 @@ public struct TodoList: Reducer {
         }
         
       case let .destination(.presented(.addTodo(.didSave(todo: todo)))):
-        state.todos[id: todo.id] = .init(todo: todo)
+        state.todos[id: todo.id] = todo /*.init(todo: todo)*/
         state.destination = nil
         return .send(.destination(.dismiss))
 
@@ -73,7 +73,7 @@ public struct TodoList: Reducer {
         
       case let .didLoad(todos: todos):
         state.todos = IdentifiedArray(
-          uncheckedUniqueElements: todos.map(TodoRow.State.init(todo:))
+          uncheckedUniqueElements: todos /*todos.map(TodoRow.State.init(todo:))*/
         )
         return .none
         
@@ -90,11 +90,11 @@ public struct TodoList: Reducer {
             
             """
           )
-          state.todos[id: todo.id] = .init(todo: todo)
+          state.todos[id: todo.id] = todo /*.init(todo: todo)*/
           return .none
         }
         state.todos.remove(id: id)
-        state.todos.insert(.init(todo: todo), at: index)
+        state.todos.insert(todo /*.init(todo: todo)*/, at: index)
         return .none
         
       case .refresh:
@@ -102,12 +102,12 @@ public struct TodoList: Reducer {
           try await send(.didLoad(todos: todoClient.fetchAll()))
         }
 
-      case let .todo(id: _, action: .didDelete(id: id)):
-        state.todos.remove(id: id)
-        return .none
-
-      case .todo:
-        return .none
+//      case let .todo(id: _, action: .didDelete(id: id)):
+//        state.todos.remove(id: id)
+//        return .none
+//
+//      case .todo:
+//        return .none
 
       case .viewDidAppear:
         return .send(.refresh)
@@ -117,9 +117,9 @@ public struct TodoList: Reducer {
     .ifLet(\.$destination, action: /Action.destination) {
       Destination()
     }
-    .forEach(\.todos, action: /Action.todo(id:action:)) {
-      TodoRow()
-    }
+//    .forEach(\.todos, action: /Action.todo(id:action:)) {
+//      TodoRow()
+//    }
   }
 }
 
@@ -135,10 +135,17 @@ public struct TodoListView: View {
       NavigationStack {
         VStack {
           List {
-            ForEachStore(
-              store.scope(state: \.todos, action: TodoList.Action.todo(id:action:)),
-              content: TodoRowView.init(store:)
-            )
+//            ForEachStore(
+//              store.scope(state: \.todos, action: TodoList.Action.todo(id:action:)),
+//              content: TodoRowView.init(store:)
+//            )
+            ForEach(viewStore.todos) { todo in
+              HStack {
+                Text(todo.title)
+                Spacer()
+                Image(systemName: todo.isComplete ? "checkmark.square" : "square")
+              }
+            }
           }
           Button(action: { viewStore.send(.deleteAllButtonTapped, animation: .easeOut) }) {
             Label("Delete All", systemImage: "trash")

@@ -5,23 +5,62 @@ import SharedModels
 
 
 extension TodoClient: DependencyKey {
+  
+  public static func live(container: PersistentContainer) -> Self {
+    .init(
+      delete: { try await container.deleteTodos($0) },
+      fetch: { try await container.fetchTodos($0) },
+      insert: { try await container.insertTodo($0) },
+      update: { try await container.updateTodo($0) }
+    )
+  }
 
   public static var liveValue: Self {
     @Dependency(\.persistentContainer) var container;
-    
-    return Self(
-      deleteAll: { try await container.deleteAllTodos() },
-      fetch: { try await container.fetchTodos() },
-      insert: { try await container.insertTodo($0) }
-    )
+    return .live(container: container)
+  }
+}
+
+fileprivate extension TodoClient.FetchRequest {
+  
+  var sortDescriptors: [NSSortDescriptor]? {
+    switch self {
+    case .all:
+      return [
+        NSSortDescriptor(key: #keyPath(TodoEntity.lastModified), ascending: false)
+      ]
+    case let .sorted(by: sortDescriptors):
+      return sortDescriptors
+    }
+  }
+}
+
+fileprivate extension TodoClient.DeleteRequest {
+  
+  var batchDeleteRequest: NSBatchDeleteRequest {
+    switch self {
+    case .all:
+      return .init(fetchRequest: TodoEntity.fetchRequest())
+    case let .objectIDs(objectIDs):
+      return .init(objectIDs: objectIDs)
+    }
   }
 }
 
 fileprivate extension PersistentContainer {
   
-  func fetchTodos() async throws -> [Todo] {
+  func fetchTodos(_ fetchRequest: TodoClient.FetchRequest) async throws -> [Todo] {
     try await self.withViewContext { context in
-      try context.fetch(TodoEntity.fetchRequest())
+      // Create fetch request.
+      let request = TodoEntity.fetchRequest()
+      
+      // Apply sort descriptors if applicable
+      if let sortDescriptors = fetchRequest.sortDescriptors {
+        request.sortDescriptors = sortDescriptors
+      }
+      
+      // Fetch the results and turn them into `Todo` instances.
+      return try context.fetch(request)
         .map(Todo.init(entity:))
     }
   }
@@ -36,14 +75,36 @@ fileprivate extension PersistentContainer {
     }
   }
   
-  func deleteAllTodos() async throws {
+  func deleteTodos(_ deleteRequest: TodoClient.DeleteRequest) async throws {
     try await self.withNewBackgroundContext { context in
-      let request = NSBatchDeleteRequest(fetchRequest: TodoEntity.fetchRequest())
-      request.resultType = .resultTypeCount
+      let request = deleteRequest.batchDeleteRequest
+      request.resultType = .resultTypeStatusOnly
       try context.performAndWait {
+        // Fix to check for failures.
         _ = try context.execute(request) as? NSBatchDeleteResult
         try context.save()
         context.reset()
+      }
+    }
+  }
+  
+  func updateTodo(_ todo: Todo) async throws -> Todo {
+    try await self.withNewBackgroundContext { context in
+      guard let entity = try context.existingObject(with: todo.id) as? TodoEntity
+      else {
+        XCTFail("Tried to update a todo that was not found in core data.")
+        return todo
+      }
+
+      entity.title = todo.title
+      entity.complete = todo.isComplete
+
+      do {
+        try context.saveIfNeeded()
+        return Todo(entity: entity)
+      } catch {
+        context.rollback()
+        throw error
       }
     }
   }

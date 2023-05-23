@@ -4,7 +4,7 @@ import Foundation
 
 public struct Todo: Equatable, Sendable, Identifiable {
   
-  @UncheckedSendable public var id: NSManagedObjectID
+  @UncheckedSendable public private(set) var id: NSManagedObjectID
   public var title: String
   public var isComplete: Bool
   public let lastModified: Date
@@ -43,7 +43,10 @@ extension Todo {
     public let title: String
     public let isComplete: Bool
     
-    public init(title: String, isComplete: Bool) {
+    public init(
+      title: String,
+      isComplete: Bool
+    ) {
       self.title = title
       self.isComplete = isComplete
     }

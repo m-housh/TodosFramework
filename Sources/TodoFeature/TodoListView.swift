@@ -19,6 +19,7 @@ public struct TodoList: Reducer {
     case addTodoButtonTapped
     case deleteAllButtonTapped
     case didLoad(todos: [Todo])
+    case refresh
     case viewDidAppear
   }
   
@@ -45,10 +46,14 @@ public struct TodoList: Reducer {
         state.todos = IdentifiedArray(uncheckedUniqueElements: todos)
         return .none
         
-      case .viewDidAppear:
+      case .refresh:
         return .run { send in
           try await send(.didLoad(todos: todoClient.fetch()))
         }
+        
+      case .viewDidAppear:
+        return .send(.refresh)
+        
       }
     }
   }
@@ -79,6 +84,7 @@ public struct TodoListView: View {
               .foregroundColor(.red)
           }
         }
+        .refreshable { viewStore.send(.refresh) }
         .onAppear { viewStore.send(.viewDidAppear) }
         .navigationTitle("Todos")
         .toolbar {

@@ -41,7 +41,7 @@ fileprivate extension PersistentContainer {
       let request = NSBatchDeleteRequest(fetchRequest: TodoEntity.fetchRequest())
       request.resultType = .resultTypeCount
       try context.performAndWait {
-        let result = try context.execute(request) as? NSBatchDeleteResult
+        _ = try context.execute(request) as? NSBatchDeleteResult
         try context.save()
         context.reset()
       }

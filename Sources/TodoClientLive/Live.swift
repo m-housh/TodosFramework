@@ -48,7 +48,7 @@ fileprivate extension TodoClient.DeleteRequest {
 }
 
 fileprivate extension PersistentContainer {
-  
+
   func fetchTodos(_ fetchRequest: TodoClient.FetchRequest) async throws -> [Todo] {
     try await self.withViewContext { context in
       // Create fetch request.
@@ -89,7 +89,9 @@ fileprivate extension PersistentContainer {
   }
   
   func updateTodo(_ todo: Todo) async throws -> Todo {
-    try await self.withNewBackgroundContext { context in
+    @Dependency(\.date.now) var now;
+
+    return try await self.withNewBackgroundContext { context in
       guard let entity = try context.existingObject(with: todo.id) as? TodoEntity
       else {
         XCTFail("Tried to update a todo that was not found in core data.")
@@ -98,6 +100,7 @@ fileprivate extension PersistentContainer {
 
       entity.title = todo.title
       entity.complete = todo.isComplete
+      entity.lastModified = now
 
       do {
         try context.saveIfNeeded()

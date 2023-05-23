@@ -67,6 +67,8 @@ extension PersistentContainer {
   private func newBackgroundContext() -> NSManagedObjectContext {
     container.newBackgroundContext()
   }
+
+  public var viewContext: NSManagedObjectContext { container.viewContext }
   
   @MainActor
   public func withViewContext<R: Sendable>(

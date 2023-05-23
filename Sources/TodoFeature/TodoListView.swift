@@ -9,9 +9,14 @@ public struct TodoList: Reducer {
   
   public struct State: Equatable {
     public var todos: IdentifiedArrayOf<Todo>
+    @PresentationState public var destination: Destination.State?
     
-    public init(todos: IdentifiedArrayOf<Todo> = []) {
+    public init(
+      todos: IdentifiedArrayOf<Todo> = [],
+      destination: Destination.State? = nil
+    ) {
       self.todos = todos
+      self.destination = destination
     }
   }
   
@@ -19,11 +24,28 @@ public struct TodoList: Reducer {
     case addTodoButtonTapped
     case deleteAllButtonTapped
     case delete(id: Todo.ID)
+    case destination(PresentationAction<Destination.Action>)
     case didLoad(todos: [Todo])
     case didSave(id: Todo.ID, todo: Todo)
     case refresh
     case toggleCompletedTapped(todo: Todo)
     case viewDidAppear
+  }
+
+  public struct Destination: Reducer {
+    public enum State: Equatable {
+      case addTodo(AddTodo.State)
+    }
+
+    public enum Action: Equatable {
+      case addTodo(AddTodo.Action)
+    }
+
+    public var body: some ReducerOf<Self> {
+      Scope(state: /State.addTodo, action: /Action.addTodo) {
+        AddTodo()
+      }
+    }
   }
   
   @Dependency(\.todoClient) var todoClient;
@@ -33,11 +55,8 @@ public struct TodoList: Reducer {
       switch action {
         
       case .addTodoButtonTapped:
-        // fix
-        return .run { send in
-          _ = try await todoClient.insert(.init(title: "Test Todo", isComplete: Bool.random()))
-          await send(.viewDidAppear)
-        }
+        state.destination = .addTodo(.init())
+        return .none
         
       case .deleteAllButtonTapped:
         return .run { send in
@@ -50,6 +69,14 @@ public struct TodoList: Reducer {
         return .fireAndForget {
           try await todoClient.delete(.id(id))
         }
+
+      case let .destination(.presented(.addTodo(.didSave(todo: todo)))):
+        state.todos[id: todo.id] = todo
+        state.destination = nil
+        return .send(.destination(.dismiss))
+
+      case .destination:
+        return .none
         
       case let .didLoad(todos: todos):
         state.todos = IdentifiedArray(uncheckedUniqueElements: todos)
@@ -91,6 +118,9 @@ public struct TodoList: Reducer {
         return .send(.refresh)
         
       }
+    }
+    .ifLet(\.$destination, action: /Action.destination) {
+      Destination()
     }
   }
 }
@@ -136,6 +166,23 @@ public struct TodoListView: View {
         .toolbar {
           Button(action: { viewStore.send(.addTodoButtonTapped) }) {
             Label("Add", systemImage: "plus")
+          }
+        }
+        .sheet(
+          store: store.scope(state: \.$destination, action: TodoList.Action.destination),
+          state: /TodoList.Destination.State.addTodo,
+          action: TodoList.Destination.Action.addTodo
+        ) { store in
+          NavigationStack {
+            AddTodoView(store: store)
+              .navigationTitle("Add Todo")
+              .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                  Button("Cancel") {
+                    viewStore.send(.destination(.dismiss))
+                  }
+                }
+              }
           }
         }
       }

@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import SharedModels
 import SwiftUI
+import TodoClient
 
 public struct AddTodo: Reducer {
   
@@ -14,11 +15,32 @@ public struct AddTodo: Reducer {
   
   public enum Action: Equatable, BindableAction {
     case binding(BindingAction<State>)
+    case didSave(todo: Todo)
     case saveButtonTapped
   }
-  
+
+  @Dependency(\.todoClient) var todoClient;
+
   public var body: some ReducerOf<Self> {
     BindingReducer()
+    Reduce { state, action in
+      switch action {
+
+      case .binding:
+        return .none
+
+      case .didSave:
+        return .none
+
+      case .saveButtonTapped:
+        return .run { [todo = state.todo] send in
+          let saved = try await todoClient.insert(
+            .init(title: todo.title, isComplete: todo.isComplete)
+          )
+          await send(.didSave(todo: saved))
+        }
+      }
+    }
   }
 }
 

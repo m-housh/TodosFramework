@@ -8,11 +8,11 @@ public struct TodoList: Reducer {
   public init() { }
   
   public struct State: Equatable {
-    public var todos: IdentifiedArrayOf<Todo>
+    public var todos: IdentifiedArrayOf<TodoRow.State>
     @PresentationState public var destination: Destination.State?
     
     public init(
-      todos: IdentifiedArrayOf<Todo> = [],
+      todos: IdentifiedArrayOf<TodoRow.State> = [],
       destination: Destination.State? = nil
     ) {
       self.todos = todos
@@ -23,12 +23,11 @@ public struct TodoList: Reducer {
   public enum Action: Equatable {
     case addTodoButtonTapped
     case deleteAllButtonTapped
-    case delete(id: Todo.ID)
     case destination(PresentationAction<Destination.Action>)
     case didLoad(todos: [Todo])
-    case didSave(id: Todo.ID, todo: Todo)
+    case didSave(id: TodoRow.State.ID, todo: Todo)
     case refresh
-    case toggleCompletedTapped(todo: Todo)
+    case todo(id: TodoRow.State.ID, action: TodoRow.Action)
     case viewDidAppear
   }
 
@@ -64,14 +63,8 @@ public struct TodoList: Reducer {
           await send(.viewDidAppear)
         }
         
-      case let .delete(id: id):
-        state.todos.remove(id: id)
-        return .fireAndForget {
-          try await todoClient.delete(.id(id))
-        }
-
       case let .destination(.presented(.addTodo(.didSave(todo: todo)))):
-        state.todos[id: todo.id] = todo
+        state.todos[id: todo.id] = .init(todo: todo)
         state.destination = nil
         return .send(.destination(.dismiss))
 
@@ -79,7 +72,9 @@ public struct TodoList: Reducer {
         return .none
         
       case let .didLoad(todos: todos):
-        state.todos = IdentifiedArray(uncheckedUniqueElements: todos)
+        state.todos = IdentifiedArray(
+          uncheckedUniqueElements: todos.map(TodoRow.State.init(todo:))
+        )
         return .none
         
       case let .didSave(id: id, todo: todo):
@@ -95,25 +90,25 @@ public struct TodoList: Reducer {
             
             """
           )
-          state.todos[id: todo.id] = todo
+          state.todos[id: todo.id] = .init(todo: todo)
           return .none
         }
         state.todos.remove(id: id)
-        state.todos.insert(todo, at: index)
+        state.todos.insert(.init(todo: todo), at: index)
         return .none
         
       case .refresh:
         return .run { send in
           try await send(.didLoad(todos: todoClient.fetchAll()))
         }
-        
-      case var .toggleCompletedTapped(todo: todo):
-        todo.isComplete.toggle()
-        return .run { [todo = todo] send in
-          let saved = try await todoClient.update(todo)
-          await send(.didSave(id: todo.id, todo: saved))
-        }
-        
+
+      case let .todo(id: _, action: .didDelete(id: id)):
+        state.todos.remove(id: id)
+        return .none
+
+      case .todo:
+        return .none
+
       case .viewDidAppear:
         return .send(.refresh)
         
@@ -121,6 +116,9 @@ public struct TodoList: Reducer {
     }
     .ifLet(\.$destination, action: /Action.destination) {
       Destination()
+    }
+    .forEach(\.todos, action: /Action.todo(id:action:)) {
+      TodoRow()
     }
   }
 }
@@ -137,28 +135,16 @@ public struct TodoListView: View {
       NavigationStack {
         VStack {
           List {
-            ForEach(viewStore.todos) { todo in
-              HStack {
-                Text(todo.title)
-                Spacer()
-                Image(systemName: todo.isComplete ? "checkmark.square" : "square")
-                  .onTapGesture {
-                    viewStore.send(.toggleCompletedTapped(todo: todo))
-                  }
-              }
-              .swipeActions(allowsFullSwipe: true) {
-                Button(role: .destructive) {
-                  viewStore.send(.delete(id: todo.id))
-                } label: {
-                  Label("Delete", systemImage: "trash")
-                }
-              }
-            }
+            ForEachStore(
+              store.scope(state: \.todos, action: TodoList.Action.todo(id:action:)),
+              content: TodoRowView.init(store:)
+            )
           }
           Button(action: { viewStore.send(.deleteAllButtonTapped, animation: .easeOut) }) {
             Label("Delete All", systemImage: "trash")
               .foregroundColor(.red)
           }
+          .padding()
         }
         .refreshable { viewStore.send(.refresh) }
         .onAppear { viewStore.send(.viewDidAppear) }
@@ -175,7 +161,9 @@ public struct TodoListView: View {
         ) { store in
           NavigationStack {
             AddTodoView(store: store)
+              .padding()
               .navigationTitle("Add Todo")
+              .frame(minWidth: 300, minHeight: 175)
               .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                   Button("Cancel") {

@@ -55,12 +55,15 @@ public struct AddTodoView: View {
   public var body: some View {
     WithViewStore(store, observe: { $0 }) { viewStore in
       Form {
-        TextField("Todo title...", text: viewStore.binding(\.$todo.title))
+        TextField("Title", text: viewStore.binding(\.$todo.title))
         Toggle("Complete", isOn: viewStore.binding(\.$todo.isComplete))
       }
+      .onSubmit { viewStore.send(.saveButtonTapped) }
       .toolbar {
-        Button("Save") {
-          viewStore.send(.saveButtonTapped)
+        ToolbarItem(placement: .confirmationAction) {
+          Button("Save") {
+            viewStore.send(.saveButtonTapped)
+          }
         }
       }
     }

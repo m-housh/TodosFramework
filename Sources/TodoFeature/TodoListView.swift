@@ -8,11 +8,12 @@ public struct TodoList: Reducer {
   public init() { }
   
   public struct State: Equatable {
-    public var todos: IdentifiedArrayOf<Todo>
+    public var todos: [Todo]
     @PresentationState public var destination: Destination.State?
     
     public init(
-      todos: IdentifiedArrayOf<Todo> = [],
+//      todos: IdentifiedArrayOf<Todo> = [],
+      todos: [Todo] = [],
       destination: Destination.State? = nil
     ) {
       self.todos = todos
@@ -64,7 +65,17 @@ public struct TodoList: Reducer {
         }
         
       case let .destination(.presented(.addTodo(.didSave(todo: todo)))):
-        state.todos[id: todo.id] = todo /*.init(todo: todo)*/
+//        state.todos[id: todo.id] = todo /*.init(todo: todo)*/
+//        guard let index = state.todos.firstIndex(where: { $0.id == todo.id })
+//        else {
+//          XCTFail("""
+//          Add todo
+//          """)
+//          return .none
+//        }
+//        state.todos.remove(at: index)
+//        state.todos.insert(todo, at: index)
+        state.todos.insert(todo, at: 0)
         state.destination = nil
         return .send(.destination(.dismiss))
 
@@ -72,13 +83,14 @@ public struct TodoList: Reducer {
         return .none
         
       case let .didLoad(todos: todos):
-        state.todos = IdentifiedArray(
-          uncheckedUniqueElements: todos /*todos.map(TodoRow.State.init(todo:))*/
-        )
+//        state.todos = IdentifiedArray(
+//          uncheckedUniqueElements: todos /*todos.map(TodoRow.State.init(todo:))*/
+//        )
+        state.todos = todos
         return .none
         
       case let .didSave(id: id, todo: todo):
-        guard let index = state.todos.index(id: id) else {
+        guard let index = state.todos.firstIndex(where: { $0.id == id }) else {
           XCTFail(
             """
             Recieved did save action on a todo that was not found in the current todos.
@@ -90,10 +102,11 @@ public struct TodoList: Reducer {
             
             """
           )
-          state.todos[id: todo.id] = todo /*.init(todo: todo)*/
+//          state.todos[id: todo.id] = todo /*.init(todo: todo)*/
           return .none
         }
-        state.todos.remove(id: id)
+//        state.todos.remove(id: id)
+        state.todos.remove(at: index)
         state.todos.insert(todo /*.init(todo: todo)*/, at: index)
         return .none
         

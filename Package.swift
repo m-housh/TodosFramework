@@ -1,28 +1,68 @@
 // swift-tools-version: 5.8
-// The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
-    name: "TodosFramework",
-    products: [
-        // Products define the executables and libraries a package produces, and make them visible to other packages.
-        .library(
-            name: "TodosFramework",
-            targets: ["TodosFramework"]),
-    ],
-    dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        // .package(url: /* package url */, from: "1.0.0"),
-    ],
-    targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages this package depends on.
-        .target(
-            name: "TodosFramework",
-            dependencies: []),
-        .testTarget(
-            name: "TodosFrameworkTests",
-            dependencies: ["TodosFramework"]),
-    ]
+  name: "TodosFramework",
+  platforms: [
+    .iOS(.v16),
+    .macOS(.v13)
+  ],
+  products: [
+    .library(name: "SharedModels", targets: ["SharedModels"]),
+    .library(name: "TodoClient", targets: ["TodoClient"]),
+    .library(name: "TodoClientLive", targets: ["TodoClientLive"]),
+    .library(name: "TodoFeature", targets: ["TodoFeature"])
+  ],
+  dependencies: [
+    .package(
+      url: "https://github.com/pointfreeco/swift-dependencies.git",
+      from: "0.5.0"
+    ),
+    .package(
+      url: "https://github.com/pointfreeco/swift-composable-architecture.git",
+      branch: "prerelease/1.0"
+    ),
+    .package(
+      url: "https://github.com/tgrapperon/swift-dependencies-additions.git",
+      from: "0.5.1"
+    )
+  ],
+  targets: [
+    .target(
+      name: "SharedModels",
+      dependencies: [
+        .product(name: "Dependencies", package: "swift-dependencies"),
+      ],
+      resources: [
+        .copy("Resources/Model")
+      ]
+    ),
+    .testTarget(
+      name: "TodosFrameworkTests",
+      dependencies: ["SharedModels"]
+    ),
+    .target(
+      name: "TodoClient",
+      dependencies: [
+        "SharedModels",
+        .product(name: "Dependencies", package: "swift-dependencies")
+      ]
+    ),
+    .target(
+      name: "TodoClientLive",
+      dependencies: [
+        "SharedModels",
+        "TodoClient",
+        .product(name: "DependenciesAdditions", package: "swift-dependencies-additions")
+      ]
+    ),
+    .target(
+      name: "TodoFeature",
+      dependencies: [
+        "TodoClient",
+        .product(name: "ComposableArchitecture", package: "swift-composable-architecture")
+      ]
+    )
+  ]
 )

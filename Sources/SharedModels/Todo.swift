@@ -4,9 +4,9 @@ import Foundation
 
 public struct Todo: Equatable, Sendable, Identifiable {
   
-  @_spi(Internals)
-  @UncheckedSendable
-  public private(set) var _managedID: NSManagedObjectID
+//  @_spi(Internals)
+//  @UncheckedSendable
+//  public private(set) var _managedID: NSManagedObjectID
   
   public var id: UUID
   public var title: String
@@ -23,7 +23,7 @@ public struct Todo: Equatable, Sendable, Identifiable {
     self.title = title
     self.isComplete = isComplete
     self.lastModified = lastModified
-    self._managedID = .init()
+//    self._managedID = .init()
   }
   
   public init(id: ID? = nil, entity: TodoEntity) {
@@ -31,7 +31,7 @@ public struct Todo: Equatable, Sendable, Identifiable {
     @Dependency(\.uuid) var uuid;
     
     self.id = id ?? uuid()
-    self._managedID = entity.objectID
+//    self._managedID = entity.objectID
     self.title = entity.title ?? ""
     self.isComplete = entity.complete
     self.lastModified = entity.lastModified ?? now

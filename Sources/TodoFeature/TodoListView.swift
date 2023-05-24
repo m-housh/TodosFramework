@@ -10,11 +10,13 @@ public struct TodoList: Reducer {
   public struct State: Equatable {
     public var todos: IdentifiedArrayOf<TodoRow.State>
     @PresentationState public var destination: Destination.State?
+    var hasAppeard: Bool = false
     
     public init(
       todos: IdentifiedArrayOf<TodoRow.State> = [],
       destination: Destination.State? = nil
     ) {
+      print("Init: TodoList.State")
       self.todos = todos
       self.destination = destination
     }
@@ -24,11 +26,15 @@ public struct TodoList: Reducer {
     case addTodoButtonTapped
     case deleteAllButtonTapped
     case destination(PresentationAction<Destination.Action>)
+    case didLoadTodos(TaskResult<[Todo]>)
     case didLoad(todos: [Todo])
     case didSave(id: TodoRow.State.ID, todo: Todo)
     case refresh
     case todo(id: TodoRow.State.ID, action: TodoRow.Action)
     case viewDidAppear
+    
+    // remove
+    case printState
   }
 
   public struct Destination: Reducer {
@@ -71,10 +77,26 @@ public struct TodoList: Reducer {
       case .destination:
         return .none
         
-      case let .didLoad(todos: todos):
+      case let .didLoadTodos(.success(todos)):
+        print("did load todos before: \(state.todos)")
         state.todos = IdentifiedArray(
           uncheckedUniqueElements: todos.map(TodoRow.State.init(todo:))
         )
+        print("did load todos after: \(state.todos)")
+        return .none
+//        return .send(.didLoad(todos: todos))
+        
+      case let .didLoadTodos(.failure(error)):
+        print("Failed to load todos: Error: \(error)")
+        // fix
+        return .none
+        
+      case let .didLoad(todos: todos):
+        print("did load todos before: \(state.todos)")
+        state.todos = IdentifiedArray(
+          uncheckedUniqueElements: todos.map(TodoRow.State.init(todo:))
+        )
+        print("did load todos after: \(state.todos)")
         return .none
         
       case let .didSave(id: id, todo: todo):
@@ -99,7 +121,12 @@ public struct TodoList: Reducer {
         
       case .refresh:
         return .run { send in
-          try await send(.didLoad(todos: todoClient.fetchAll()))
+          await send(
+            .didLoadTodos(TaskResult { try await todoClient.fetchAll() })
+//            .didLoad(todos: todoClient.fetchAll())
+          )
+//          let todos = try await todoClient.fetchAll()
+//          await send(.didLoad(todos: todos))
         }
 
       case let .todo(id: _, action: .didDelete(id: id)):
@@ -110,7 +137,19 @@ public struct TodoList: Reducer {
         return .none
 
       case .viewDidAppear:
-        return .send(.refresh)
+        guard state.hasAppeard else {
+          state.hasAppeard = true
+          return .run { send in
+            await send(.refresh)
+          }
+        }
+        return .none
+        
+        // remove
+      case .printState:
+        print(state.todos.count)
+        print(state.todos)
+        return .none
         
       }
     }
@@ -130,8 +169,16 @@ public struct TodoListView: View {
     self.store = store
   }
   
+  struct ViewState: Equatable {
+    let ids: Set<TodoRow.State.ID>
+    
+    init(state: TodoList.State) {
+      self.ids = Set(state.todos.ids)
+    }
+  }
+  
   public var body: some View {
-    WithViewStore(store, observe: { $0 }) { viewStore in
+    WithViewStore(store, observe: ViewState.init(state:)) { viewStore in
       NavigationStack {
         VStack {
           List {
@@ -140,13 +187,19 @@ public struct TodoListView: View {
               content: TodoRowView.init(store:)
             )
           }
-          Button(action: { viewStore.send(.deleteAllButtonTapped, animation: .easeOut) }) {
-            Label("Delete All", systemImage: "trash")
-              .foregroundColor(.red)
+          HStack {
+            Button(action: { viewStore.send(.deleteAllButtonTapped, animation: .easeOut) }) {
+              Label("Delete All", systemImage: "trash")
+                .foregroundColor(.red)
+            }
+            .padding()
+            
+            Button(action: { viewStore.send(.printState) }) {
+              Text("Print")
+            }
           }
-          .padding()
         }
-        .navigationTitle("Todos")
+        .navigationTitle("Todos: Count: \(viewStore.ids.count)")
         .onAppear { viewStore.send(.viewDidAppear) }
         .refreshable { viewStore.send(.refresh) }
         .toolbar {

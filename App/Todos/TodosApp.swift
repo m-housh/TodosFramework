@@ -2,6 +2,7 @@ import Dependencies
 import SharedModels
 import SwiftUI
 import TodoFeature
+import TodoClientLive
 
 @main
 struct TodosApp: App {
@@ -10,17 +11,27 @@ struct TodosApp: App {
 
   var body: some Scene {
     WindowGroup {
-      TodoListView(
+      SimpleTodoListView(
         store: .init(
-          initialState: TodoList.State(),
-          reducer: TodoList()._printChanges()
+          initialState: .init(),
+          reducer: SimpleTodoList()._printChanges()
+            .dependency(\.todoClient, .liveValue)
         )
       )
-      .onChange(of: scenPhase) { phase in
-        if !(phase == .active) {
-          _ = try? persistentContainer.saveViewContextIfNeeded()
-        }
-      }
+//      TodoListView(
+//        store: .init(
+//          initialState: TodoList.State(),
+//          reducer: TodoList()._printChanges()
+//        ) {
+//          $0.persistentContainer = persistentContainer
+//          $0.todoClient = .liveValue
+//        }
+//      )
+//      .onChange(of: scenPhase) { phase in
+//        if !(phase == .active) {
+//          _ = try? persistentContainer.saveViewContextIfNeeded()
+//        }
+//      }
     }
   }
 }

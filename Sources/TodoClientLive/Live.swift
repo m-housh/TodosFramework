@@ -42,7 +42,9 @@ fileprivate extension TodoClient.DeleteRequest {
     case .all:
       return .init(fetchRequest: TodoEntity.fetchRequest())
     case let .todos(todos):
-      return .init(objectIDs: todos.map(\._managedID))
+      #warning("Fix me.")
+      return .init(fetchRequest: TodoEntity.fetchRequest())
+//      return .init(objectIDs: todos.map(\._managedID))
     case let .objectIDs(objectIDs):
       return .init(objectIDs: objectIDs)
     }
@@ -94,25 +96,28 @@ fileprivate extension PersistentContainer {
   
   func updateTodo(_ todo: Todo) async throws -> Todo {
     @Dependency(\.date.now) var now;
+    
+    #warning("Fix me.")
+    return todo
 
-    return try await self.withNewBackgroundContext { context in
-      guard let entity = try context.existingObject(with: todo._managedID) as? TodoEntity
-      else {
-        XCTFail("Tried to update a todo that was not found in core data.")
-        return todo
-      }
-
-      entity.title = todo.title
-      entity.complete = todo.isComplete
-      entity.lastModified = now
-
-      do {
-        try context.saveIfNeeded()
-        return Todo(id: todo.id, entity: entity)
-      } catch {
-        context.rollback()
-        throw error
-      }
-    }
+//    return try await self.withNewBackgroundContext { context in
+//      guard let entity = try context.existingObject(with: todo._managedID) as? TodoEntity
+//      else {
+//        XCTFail("Tried to update a todo that was not found in core data.")
+//        return todo
+//      }
+//
+//      entity.title = todo.title
+//      entity.complete = todo.isComplete
+//      entity.lastModified = now
+//
+//      do {
+//        try context.saveIfNeeded()
+//        return Todo(id: todo.id, entity: entity)
+//      } catch {
+//        context.rollback()
+//        throw error
+//      }
+//    }
   }
 }
